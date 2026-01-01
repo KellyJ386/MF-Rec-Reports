@@ -1,9 +1,70 @@
-# Rec Reports - Development Roadmap
+# Rec Reports - Development Roadmap (Lovable Stack)
 ## Multi-Tenant SaaS Platform for Recreation Organizations
 
 **Target Scale:** Up to 500 users per organization, unlimited organizations
-**Architecture:** Multi-tenant, enterprise-grade SaaS
+**Architecture:** Multi-tenant, enterprise-grade SaaS built with Lovable
 **Timeline:** 12-month phased rollout
+
+---
+
+## Tech Stack (Lovable-Optimized)
+
+### Frontend
+- **React 18+** - UI framework
+- **TypeScript** - Type safety
+- **Vite** - Build tool and dev server
+- **TailwindCSS** - Utility-first styling
+- **shadcn/ui** - Component library
+- **Radix UI** - Accessible primitives
+- **Lucide React** - Icon library
+
+### Backend & Services
+- **Supabase** - Backend as a Service
+  - PostgreSQL database (with Row Level Security)
+  - Supabase Auth (JWT-based authentication)
+  - Supabase Storage (file uploads)
+  - Supabase Edge Functions (serverless functions)
+  - Supabase Realtime (WebSocket subscriptions)
+
+### Data & State Management
+- **TanStack Query (React Query)** - Server state management
+- **Zustand** - Client state management
+- **React Hook Form** - Form state management
+- **Zod** - Schema validation
+
+### Routing & Navigation
+- **React Router v6** - Client-side routing
+- **TanStack Router** (optional upgrade)
+
+### Mobile & PWA
+- **Vite PWA Plugin** - Progressive Web App capabilities
+- **Workbox** - Service worker and offline support
+- **IndexedDB** - Local storage via Dexie.js
+
+### UI/UX Libraries
+- **React DnD** - Drag and drop for form builder
+- **Recharts** - Data visualization
+- **date-fns** - Date manipulation
+- **React PDF** - PDF generation
+- **Uppy** - File uploads with progress
+
+### Development Tools
+- **ESLint + Prettier** - Code quality
+- **Vitest** - Unit testing
+- **Playwright** - E2E testing
+- **TypeScript** - Static typing
+- **Biome** (optional) - Fast linter/formatter
+
+### Deployment & Infrastructure
+- **Vercel/Netlify** - Frontend hosting (Lovable default)
+- **Supabase Cloud** - Backend infrastructure
+- **Cloudflare** - CDN and edge caching
+- **GitHub Actions** - CI/CD
+
+### Monitoring & Analytics
+- **Sentry** - Error tracking
+- **PostHog** - Product analytics
+- **Supabase Analytics** - Database insights
 
 ---
 
@@ -11,129 +72,581 @@
 **Goal:** Establish rock-solid foundation for multi-tenant SaaS platform
 
 ### 0.1 Project Setup & Architecture
-- [ ] Initialize Phoenix 1.8+ application with LiveView
-- [ ] Configure Elixir umbrella app structure (separation of concerns)
-  - `rec_reports` - Core business logic
-  - `rec_reports_web` - Web interface
-  - `rec_reports_admin` - Admin interface
-- [ ] Set up development environment tooling
-  - Docker Compose for local development
-  - Pre-commit hooks (format, credo, dialyzer)
-  - GitHub Actions CI/CD pipeline
-- [ ] Configure code quality tools
-  - Credo (code consistency)
-  - Dialyzer (type checking)
-  - ExCoveralls (test coverage >80%)
-
-### 0.2 Database Architecture
-- [ ] Design multi-tenant data model
-  - Organization-level partitioning strategy
-  - Row-level security (RLS) policies
-  - Tenant isolation verification
-- [ ] Set up Supabase project
-  - Production, staging, development instances
-  - Connection pooling configuration (PgBouncer)
-  - Database migration strategy
-- [ ] Implement core schema
-  ```sql
-  -- Core multi-tenant tables
-  organizations (tenant root)
-  ├── facilities (1-to-many)
-  ├── users (org-level + facility-level)
-  ├── roles & permissions
-  └── billing & subscriptions
+- [ ] Initialize Lovable project
+  ```bash
+  # Lovable creates this automatically
+  - React + TypeScript + Vite
+  - TailwindCSS + shadcn/ui preconfigured
+  - React Router setup
   ```
-- [ ] Create database indexes for performance
-  - Composite indexes on (organization_id, created_at)
-  - Full-text search indexes where needed
-- [ ] Set up TimescaleDB extension for time-series data
-  - Hypertables for analytics
-  - Retention policies (auto-delete old data)
+- [ ] Configure project structure
+  ```
+  src/
+  ├── components/        # Reusable UI components
+  │   ├── ui/           # shadcn/ui components
+  │   ├── forms/        # Form components
+  │   └── layout/       # Layout components
+  ├── features/         # Feature-based modules
+  │   ├── auth/
+  │   ├── reports/
+  │   ├── incidents/
+  │   └── equipment/
+  ├── hooks/            # Custom React hooks
+  ├── lib/              # Utilities and config
+  │   ├── supabase.ts
+  │   ├── api.ts
+  │   └── utils.ts
+  ├── types/            # TypeScript types
+  ├── stores/           # Zustand stores
+  └── pages/            # Route pages
+  ```
+- [ ] Set up code quality tools
+  - ESLint configuration
+  - Prettier configuration
+  - Pre-commit hooks (Husky + lint-staged)
+  - TypeScript strict mode
+
+### 0.2 Supabase Configuration
+- [ ] Create Supabase project (Production, Staging, Development)
+- [ ] Design multi-tenant database schema
+  ```sql
+  -- Core multi-tenant structure
+  CREATE TABLE organizations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    slug TEXT UNIQUE NOT NULL,
+    facility_type TEXT,
+    settings JSONB DEFAULT '{}',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+  );
+
+  CREATE TABLE facilities (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    address TEXT,
+    city TEXT,
+    state TEXT,
+    zip TEXT,
+    timezone TEXT DEFAULT 'America/New_York',
+    settings JSONB DEFAULT '{}',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+  );
+
+  CREATE TABLE profiles (
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
+    facility_id UUID REFERENCES facilities(id) ON DELETE SET NULL,
+    email TEXT NOT NULL,
+    role TEXT NOT NULL CHECK (role IN ('super_admin', 'facility_admin', 'manager', 'supervisor', 'staff', 'read_only')),
+    first_name TEXT,
+    last_name TEXT,
+    phone TEXT,
+    avatar_url TEXT,
+    active BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+  );
+  ```
+
+- [ ] Implement Row Level Security (RLS)
+  ```sql
+  -- Enable RLS on all tables
+  ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE facilities ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+
+  -- Policy: Users can only see their own organization's data
+  CREATE POLICY "Users can view own organization"
+    ON organizations FOR SELECT
+    USING (
+      id IN (
+        SELECT organization_id FROM profiles
+        WHERE id = auth.uid()
+      )
+    );
+
+  CREATE POLICY "Users can view facilities in their organization"
+    ON facilities FOR SELECT
+    USING (
+      organization_id IN (
+        SELECT organization_id FROM profiles
+        WHERE id = auth.uid()
+      )
+    );
+  ```
+
+- [ ] Create database functions for common operations
+  ```sql
+  -- Function to get user's organization
+  CREATE OR REPLACE FUNCTION get_user_organization_id()
+  RETURNS UUID AS $$
+    SELECT organization_id FROM profiles WHERE id = auth.uid()
+  $$ LANGUAGE sql SECURITY DEFINER;
+
+  -- Function to check if user has permission
+  CREATE OR REPLACE FUNCTION has_permission(required_role TEXT)
+  RETURNS BOOLEAN AS $$
+    SELECT role IN ('super_admin', required_role)
+    FROM profiles
+    WHERE id = auth.uid()
+  $$ LANGUAGE sql SECURITY DEFINER;
+  ```
+
+- [ ] Set up Supabase Storage buckets
+  ```typescript
+  // Bucket structure
+  organizations/{org_id}/
+  ├── photos/
+  │   ├── incidents/
+  │   ├── reports/
+  │   └── equipment/
+  ├── videos/
+  ├── documents/
+  └── exports/
+  ```
+
+- [ ] Configure Storage policies
+  ```sql
+  -- Policy: Users can upload to their organization's bucket
+  CREATE POLICY "Users can upload files"
+    ON storage.objects FOR INSERT
+    WITH CHECK (
+      bucket_id = 'organizations' AND
+      (storage.foldername(name))[1] = (
+        SELECT organization_id::text FROM profiles WHERE id = auth.uid()
+      )
+    );
+  ```
 
 ### 0.3 Authentication & Authorization
-- [ ] Integrate Supabase Auth
-  - JWT token management
-  - Session handling (12-hour timeout)
-  - Token refresh strategy
-- [ ] Implement role-based access control (RBAC)
-  - Policy engine for permissions
-  - Hierarchical roles (org → facility → department)
-  - Context-aware authorization (user can only see their org's data)
-- [ ] Build user management system
-  - User invitation flow
+- [ ] Set up Supabase Auth configuration
+  - Email/password authentication
   - Email verification
-  - Password reset
-  - Account activation/deactivation
-- [ ] Multi-factor authentication (MFA)
-  - TOTP support
-  - Backup codes
-  - MFA enforcement at org level
+  - Password reset flow
+  - Session management (12-hour timeout)
 
-### 0.4 Infrastructure & DevOps
-- [ ] Configure Fly.io deployment
-  - Multi-region setup (US-East, US-West, US-Central)
-  - Auto-scaling configuration (2-20 instances)
-  - Health checks and monitoring
-- [ ] Set up Supabase Storage
-  - Bucket organization (by org, then by type)
-  - Signed URL generation (secure file access)
-  - Image optimization pipeline
-  - CDN configuration
-- [ ] Implement observability stack
-  - Sentry for error tracking
-  - LogRocket or PostHog for session replay
-  - Custom metrics (Phoenix Telemetry)
-  - Uptime monitoring (UptimeRobot or Pingdom)
-- [ ] Configure backup strategy
-  - Automated daily backups (30-day retention)
-  - Point-in-time recovery capability
-  - Disaster recovery runbook
+- [ ] Create authentication context
+  ```typescript
+  // src/lib/auth-context.tsx
+  interface AuthContextType {
+    user: User | null;
+    profile: Profile | null;
+    organization: Organization | null;
+    loading: boolean;
+    signIn: (email: string, password: string) => Promise<void>;
+    signOut: () => Promise<void>;
+    hasPermission: (permission: string) => boolean;
+  }
+  ```
 
-### 0.5 Security Hardening
-- [ ] Implement security headers
-  - CSP, HSTS, X-Frame-Options
-  - CORS configuration
-- [ ] Set up rate limiting
-  - Per-user limits (1000 req/hour)
-  - Per-IP limits (100 req/hour unauthenticated)
-  - API endpoint specific limits
-- [ ] Encryption strategy
-  - PII data encryption at rest (AES-256)
-  - TLS 1.3 for all communications
-  - Secrets management (Fly.io secrets)
-- [ ] Audit logging system
-  - All data modifications logged
-  - User action tracking
-  - IP address and user agent logging
-  - GDPR-compliant data export
+- [ ] Implement role-based access control
+  ```typescript
+  // src/lib/permissions.ts
+  const PERMISSIONS = {
+    super_admin: ['*'],
+    facility_admin: ['manage_facility', 'manage_users', 'view_reports'],
+    manager: ['view_reports', 'approve_tasks', 'manage_incidents'],
+    supervisor: ['create_reports', 'assign_tasks', 'report_incidents'],
+    staff: ['complete_tasks', 'view_assigned'],
+    read_only: ['view_reports']
+  };
+  ```
 
-### 0.6 Testing Infrastructure
-- [ ] Set up test environment
-  - ExUnit configuration
-  - Factory pattern (ExMachina)
-  - Test database seeding
-- [ ] Integration test suite
-  - LiveView integration tests
-  - Authentication flow tests
-  - Multi-tenant isolation tests
-- [ ] Performance testing setup
-  - Load testing tools (k6 or Locust)
-  - Baseline performance metrics
-  - CI performance regression tests
+- [ ] Create protected route component
+  ```typescript
+  // src/components/ProtectedRoute.tsx
+  const ProtectedRoute = ({
+    children,
+    requiredPermission
+  }: ProtectedRouteProps) => {
+    const { user, hasPermission, loading } = useAuth();
 
-**Deliverables:**
-- ✅ Fully configured Phoenix application
-- ✅ Multi-tenant database with RLS
+    if (loading) return <Loader />;
+    if (!user) return <Navigate to="/login" />;
+    if (!hasPermission(requiredPermission)) return <Unauthorized />;
+
+    return children;
+  };
+  ```
+
+- [ ] Implement MFA (Time-based One-Time Password)
+  - TOTP setup flow
+  - Backup codes generation
+  - MFA enforcement per organization
+
+### 0.4 Core UI Components
+- [ ] Set up shadcn/ui components
+  ```bash
+  npx shadcn-ui@latest init
+  npx shadcn-ui@latest add button
+  npx shadcn-ui@latest add form
+  npx shadcn-ui@latest add input
+  npx shadcn-ui@latest add select
+  npx shadcn-ui@latest add dialog
+  npx shadcn-ui@latest add dropdown-menu
+  npx shadcn-ui@latest add table
+  npx shadcn-ui@latest add tabs
+  npx shadcn-ui@latest add card
+  npx shadcn-ui@latest add badge
+  npx shadcn-ui@latest add toast
+  npx shadcn-ui@latest add calendar
+  npx shadcn-ui@latest add checkbox
+  npx shadcn-ui@latest add radio-group
+  ```
+
+- [ ] Create custom components
+  - `PageHeader` - Consistent page headers
+  - `DataTable` - Advanced table with sorting/filtering
+  - `FileUpload` - Multi-file upload with progress
+  - `EmptyState` - Placeholder for empty data
+  - `ErrorBoundary` - Error handling wrapper
+  - `Loader` - Loading states
+  - `ConfirmDialog` - Confirmation modals
+
+- [ ] Build layout system
+  - `AppLayout` - Main app shell
+  - `AuthLayout` - Login/signup pages
+  - `DashboardLayout` - Dashboard container
+  - `MobileNavigation` - Bottom navigation for mobile
+  - `Sidebar` - Desktop navigation
+
+### 0.5 Data Layer Setup
+- [ ] Configure React Query
+  ```typescript
+  // src/lib/query-client.ts
+  import { QueryClient } from '@tanstack/react-query';
+
+  export const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: 60 * 1000, // 1 minute
+        cacheTime: 5 * 60 * 1000, // 5 minutes
+        retry: 1,
+        refetchOnWindowFocus: false,
+      },
+    },
+  });
+  ```
+
+- [ ] Create Supabase client wrapper
+  ```typescript
+  // src/lib/supabase.ts
+  import { createClient } from '@supabase/supabase-js';
+  import type { Database } from '@/types/supabase';
+
+  export const supabase = createClient<Database>(
+    import.meta.env.VITE_SUPABASE_URL,
+    import.meta.env.VITE_SUPABASE_ANON_KEY
+  );
+  ```
+
+- [ ] Build API layer with React Query
+  ```typescript
+  // src/lib/api/organizations.ts
+  export const useOrganization = (id: string) => {
+    return useQuery({
+      queryKey: ['organization', id],
+      queryFn: async () => {
+        const { data, error } = await supabase
+          .from('organizations')
+          .select('*')
+          .eq('id', id)
+          .single();
+
+        if (error) throw error;
+        return data;
+      },
+    });
+  };
+
+  export const useUpdateOrganization = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+      mutationFn: async ({ id, updates }: UpdateOrgParams) => {
+        const { data, error } = await supabase
+          .from('organizations')
+          .update(updates)
+          .eq('id', id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        return data;
+      },
+      onSuccess: (data) => {
+        queryClient.invalidateQueries(['organization', data.id]);
+      },
+    });
+  };
+  ```
+
+- [ ] Set up Zustand for client state
+  ```typescript
+  // src/stores/app-store.ts
+  import { create } from 'zustand';
+  import { persist } from 'zustand/middleware';
+
+  interface AppState {
+    sidebarOpen: boolean;
+    theme: 'light' | 'dark';
+    setSidebarOpen: (open: boolean) => void;
+    setTheme: (theme: 'light' | 'dark') => void;
+  }
+
+  export const useAppStore = create<AppState>()(
+    persist(
+      (set) => ({
+        sidebarOpen: true,
+        theme: 'light',
+        setSidebarOpen: (open) => set({ sidebarOpen: open }),
+        setTheme: (theme) => set({ theme }),
+      }),
+      {
+        name: 'app-storage',
+      }
+    )
+  );
+  ```
+
+### 0.6 Offline & PWA Setup
+- [ ] Install and configure Vite PWA plugin
+  ```typescript
+  // vite.config.ts
+  import { VitePWA } from 'vite-plugin-pwa';
+
+  export default defineConfig({
+    plugins: [
+      VitePWA({
+        registerType: 'autoUpdate',
+        includeAssets: ['favicon.ico', 'robots.txt', 'apple-touch-icon.png'],
+        manifest: {
+          name: 'Rec Reports',
+          short_name: 'RecReports',
+          description: 'Recreation Facility Operations Management',
+          theme_color: '#3b82f6',
+          icons: [
+            {
+              src: 'pwa-192x192.png',
+              sizes: '192x192',
+              type: 'image/png'
+            },
+            {
+              src: 'pwa-512x512.png',
+              sizes: '512x512',
+              type: 'image/png'
+            }
+          ]
+        },
+        workbox: {
+          runtimeCaching: [
+            {
+              urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
+              handler: 'NetworkFirst',
+              options: {
+                cacheName: 'supabase-cache',
+                expiration: {
+                  maxEntries: 100,
+                  maxAgeSeconds: 60 * 60 * 24 // 24 hours
+                }
+              }
+            }
+          ]
+        }
+      })
+    ]
+  });
+  ```
+
+- [ ] Set up IndexedDB for offline storage
+  ```typescript
+  // src/lib/offline-db.ts
+  import Dexie, { Table } from 'dexie';
+
+  interface PendingSync {
+    id?: number;
+    table: string;
+    operation: 'insert' | 'update' | 'delete';
+    data: any;
+    timestamp: Date;
+    synced: boolean;
+  }
+
+  class OfflineDB extends Dexie {
+    pendingSync!: Table<PendingSync>;
+
+    constructor() {
+      super('RecReportsOffline');
+      this.version(1).stores({
+        pendingSync: '++id, table, synced, timestamp'
+      });
+    }
+  }
+
+  export const offlineDB = new OfflineDB();
+  ```
+
+- [ ] Create offline sync manager
+  ```typescript
+  // src/lib/sync-manager.ts
+  export class SyncManager {
+    private syncQueue: PendingSync[] = [];
+
+    async queueOperation(operation: PendingSync) {
+      await offlineDB.pendingSync.add({
+        ...operation,
+        timestamp: new Date(),
+        synced: false
+      });
+    }
+
+    async syncPending() {
+      const pending = await offlineDB.pendingSync
+        .where('synced')
+        .equals(false)
+        .toArray();
+
+      for (const item of pending) {
+        try {
+          await this.syncOperation(item);
+          await offlineDB.pendingSync.update(item.id!, { synced: true });
+        } catch (error) {
+          console.error('Sync failed:', error);
+        }
+      }
+    }
+
+    private async syncOperation(item: PendingSync) {
+      // Sync logic based on operation type
+    }
+  }
+  ```
+
+### 0.7 Testing Infrastructure
+- [ ] Set up Vitest for unit tests
+  ```typescript
+  // vitest.config.ts
+  import { defineConfig } from 'vitest/config';
+
+  export default defineConfig({
+    test: {
+      globals: true,
+      environment: 'jsdom',
+      setupFiles: './src/test/setup.ts',
+      coverage: {
+        reporter: ['text', 'json', 'html'],
+        threshold: {
+          lines: 80,
+          functions: 80,
+          branches: 80,
+          statements: 80
+        }
+      }
+    }
+  });
+  ```
+
+- [ ] Set up Playwright for E2E tests
+  ```typescript
+  // playwright.config.ts
+  import { defineConfig, devices } from '@playwright/test';
+
+  export default defineConfig({
+    testDir: './e2e',
+    use: {
+      baseURL: 'http://localhost:5173',
+    },
+    projects: [
+      {
+        name: 'chromium',
+        use: { ...devices['Desktop Chrome'] },
+      },
+      {
+        name: 'Mobile Safari',
+        use: { ...devices['iPhone 13'] },
+      },
+    ],
+  });
+  ```
+
+- [ ] Create test utilities
+  ```typescript
+  // src/test/utils.tsx
+  import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+  import { render } from '@testing-library/react';
+
+  export const renderWithProviders = (ui: React.ReactElement) => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+      },
+    });
+
+    return render(
+      <QueryClientProvider client={queryClient}>
+        {ui}
+      </QueryClientProvider>
+    );
+  };
+  ```
+
+### 0.8 DevOps & Deployment
+- [ ] Configure environment variables
+  ```bash
+  # .env.example
+  VITE_SUPABASE_URL=your_supabase_url
+  VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+  VITE_APP_URL=http://localhost:5173
+  ```
+
+- [ ] Set up GitHub Actions CI/CD
+  ```yaml
+  # .github/workflows/ci.yml
+  name: CI/CD
+  on: [push, pull_request]
+
+  jobs:
+    test:
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v3
+        - uses: actions/setup-node@v3
+          with:
+            node-version: 18
+        - run: npm ci
+        - run: npm run lint
+        - run: npm run type-check
+        - run: npm run test:coverage
+        - run: npm run build
+  ```
+
+- [ ] Configure Vercel/Netlify deployment
+  - Connect GitHub repository
+  - Set environment variables
+  - Configure build settings
+  - Set up preview deployments
+
+- [ ] Set up monitoring
+  - Sentry error tracking
+  - PostHog analytics
+  - Vercel/Netlify analytics
+
+**Phase 0 Deliverables:**
+- ✅ Fully configured React + TypeScript app
+- ✅ Multi-tenant Supabase database with RLS
 - ✅ Secure authentication system
-- ✅ Production-ready infrastructure
+- ✅ Offline-capable PWA foundation
 - ✅ CI/CD pipeline operational
-- ✅ Security audit passed
+- ✅ Testing infrastructure in place
 
 **Success Metrics:**
 - All tests passing (>80% coverage)
-- Load test: Handle 100 concurrent users
-- Page load: <2s
-- API response: <200ms p95
+- Lighthouse score: >90 (Performance, Accessibility, Best Practices, SEO)
+- Bundle size: <500KB (initial load)
+- Time to Interactive: <3s
 
 ---
 
@@ -143,245 +656,1039 @@
 ### 1.1 Admin Form Builder ("The Brain")
 **Critical for configurability across diverse facilities**
 
-- [ ] Build form schema system
-  - JSON Schema-based form definitions
-  - 25+ field types (text, number, date, checkbox, photo, etc.)
-  - Field validation rules
-  - Conditional logic engine (show/hide based on answers)
-- [ ] Create drag-and-drop form builder UI
-  - LiveView-based builder interface
-  - Real-time preview
-  - Field property editor
-  - Template library (50+ starter templates)
-- [ ] Form rendering engine
-  - Dynamic LiveView form generator
-  - Mobile-optimized layouts
-  - Accessibility compliance (WCAG 2.1 AA)
-  - Multi-page form support
-- [ ] Form versioning system
-  - Track form changes over time
-  - Prevent breaking changes to active forms
-  - Migration path for form updates
-- [ ] Template management
-  - Pre-built templates by facility type
-  - Import/export templates
-  - Share templates across facilities within org
+#### Form Schema System
+- [ ] Create form schema types
+  ```typescript
+  // src/types/forms.ts
+  interface FormField {
+    id: string;
+    type: 'text' | 'number' | 'email' | 'date' | 'time' | 'checkbox' |
+          'select' | 'radio' | 'textarea' | 'file' | 'photo' | 'signature' |
+          'body-diagram' | 'facility-map' | 'temperature' | 'chemistry';
+    label: string;
+    placeholder?: string;
+    required: boolean;
+    validation?: Zod.Schema;
+    options?: SelectOption[];
+    conditionalDisplay?: ConditionalRule;
+    helpText?: string;
+    defaultValue?: any;
+  }
 
-**Technical Specs:**
-- Form definitions stored as JSONB in PostgreSQL
-- Form builder uses Alpine.js for drag-and-drop
-- Rendering uses Phoenix.Component for reusability
-- Validation via Ecto changesets
+  interface FormSchema {
+    id: string;
+    name: string;
+    description: string;
+    module_type: 'daily_report' | 'incident' | 'checklist' | 'equipment';
+    sections: FormSection[];
+    settings: FormSettings;
+  }
+
+  interface FormSection {
+    id: string;
+    title: string;
+    fields: FormField[];
+    order: number;
+  }
+  ```
+
+- [ ] Build form schema database table
+  ```sql
+  CREATE TABLE form_schemas (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
+    facility_id UUID REFERENCES facilities(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    description TEXT,
+    module_type TEXT NOT NULL,
+    schema JSONB NOT NULL,
+    settings JSONB DEFAULT '{}',
+    active BOOLEAN DEFAULT true,
+    version INTEGER DEFAULT 1,
+    created_by UUID REFERENCES profiles(id),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+  );
+
+  -- Enable RLS
+  ALTER TABLE form_schemas ENABLE ROW LEVEL SECURITY;
+
+  CREATE POLICY "Users can view forms in their organization"
+    ON form_schemas FOR SELECT
+    USING (organization_id = get_user_organization_id());
+  ```
+
+#### Form Builder UI
+- [ ] Create drag-and-drop form builder
+  ```typescript
+  // src/features/forms/FormBuilder.tsx
+  import { DndContext, DragOverlay } from '@dnd-kit/core';
+  import { SortableContext } from '@dnd-kit/sortable';
+
+  const FormBuilder = () => {
+    const [fields, setFields] = useState<FormField[]>([]);
+    const [activeField, setActiveField] = useState<FormField | null>(null);
+
+    return (
+      <div className="grid grid-cols-12 gap-4">
+        {/* Field Palette */}
+        <div className="col-span-3">
+          <FieldPalette />
+        </div>
+
+        {/* Canvas */}
+        <div className="col-span-6">
+          <DndContext onDragEnd={handleDragEnd}>
+            <SortableContext items={fields}>
+              {fields.map(field => (
+                <SortableField key={field.id} field={field} />
+              ))}
+            </SortableContext>
+          </DndContext>
+        </div>
+
+        {/* Properties Panel */}
+        <div className="col-span-3">
+          <FieldProperties field={activeField} />
+        </div>
+      </div>
+    );
+  };
+  ```
+
+- [ ] Build field palette component
+  ```typescript
+  const FIELD_TYPES = [
+    { type: 'text', icon: Type, label: 'Text Input' },
+    { type: 'number', icon: Hash, label: 'Number' },
+    { type: 'date', icon: Calendar, label: 'Date' },
+    { type: 'photo', icon: Camera, label: 'Photo Upload' },
+    { type: 'checkbox', icon: CheckSquare, label: 'Checkbox' },
+    // ... more field types
+  ];
+  ```
+
+- [ ] Create field property editor
+  - Label and placeholder editing
+  - Validation rules (required, min/max, regex)
+  - Conditional display logic builder
+  - Help text with rich formatting
+  - Default value setting
+
+- [ ] Build form preview component
+  - Real-time preview as you build
+  - Mobile/desktop view toggle
+  - Test data population
+  - Validation testing
+
+#### Form Rendering Engine
+- [ ] Create dynamic form renderer
+  ```typescript
+  // src/components/DynamicForm.tsx
+  import { useForm } from 'react-hook-form';
+  import { zodResolver } from '@hookform/resolvers/zod';
+
+  const DynamicForm = ({ schema }: { schema: FormSchema }) => {
+    const formSchema = useMemo(() => generateZodSchema(schema), [schema]);
+
+    const form = useForm({
+      resolver: zodResolver(formSchema),
+    });
+
+    return (
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)}>
+          {schema.sections.map(section => (
+            <FormSection key={section.id} section={section} />
+          ))}
+          <Button type="submit">Submit</Button>
+        </form>
+      </Form>
+    );
+  };
+  ```
+
+- [ ] Implement field renderers for each type
+  ```typescript
+  // src/components/form-fields/
+  - TextFieldRenderer.tsx
+  - NumberFieldRenderer.tsx
+  - DateFieldRenderer.tsx
+  - PhotoFieldRenderer.tsx
+  - SignatureFieldRenderer.tsx
+  - BodyDiagramRenderer.tsx
+  - FacilityMapRenderer.tsx
+  // ... etc
+  ```
+
+- [ ] Build conditional logic engine
+  ```typescript
+  const evaluateCondition = (
+    condition: ConditionalRule,
+    formValues: FormValues
+  ): boolean => {
+    // Evaluate show/hide conditions based on other field values
+    // Support AND/OR logic, comparisons, etc.
+  };
+  ```
+
+#### Form Templates
+- [ ] Create template library
+  - 50+ pre-built templates by facility type
+  - University rec center templates
+  - YMCA templates
+  - Municipal facility templates
+  - Aquatics facility templates
+
+- [ ] Build template management
+  - Template import/export (JSON)
+  - Template duplication
+  - Template versioning
+  - Share templates across facilities
 
 ### 1.2 Module: Daily Operations Reports
-**Shift documentation and handoff**
 
-- [ ] Shift report data model
-  - Shift types (opening, AM, PM, evening, closing)
-  - Customizable tabs by facility area
-  - Staff assignment tracking
-  - Weather logging
-  - Patron count by time block
-- [ ] Report creation interface
-  - Mobile-first LiveView form
-  - Auto-save every 30 seconds
-  - Photo upload (max 10 per report)
-  - Rich text editor for narratives
-  - Time-stamped entries
-- [ ] Shift handoff system
-  - Outstanding issues carry forward
-  - Priority flagging
-  - Staff acknowledgment
-  - Manager review queue
-- [ ] Report viewing & export
-  - PDF generation (beautiful formatting)
-  - Email delivery (EOD summary)
-  - Print-friendly layout
-  - Historical report search
-- [ ] Dashboard integration
-  - Today's reports by shift
-  - Completion status indicators
-  - Quick access to recent reports
+#### Database Schema
+```sql
+CREATE TABLE shift_reports (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
+  facility_id UUID REFERENCES facilities(id) ON DELETE CASCADE,
+  form_schema_id UUID REFERENCES form_schemas(id),
+  shift_date DATE NOT NULL,
+  shift_type TEXT NOT NULL CHECK (shift_type IN ('opening', 'am', 'pm', 'evening', 'closing')),
+  submitted_by UUID REFERENCES profiles(id),
+  approved_by UUID REFERENCES profiles(id),
+  status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'submitted', 'approved', 'archived')),
+  data JSONB NOT NULL DEFAULT '{}',
+  photos TEXT[] DEFAULT ARRAY[]::TEXT[],
+  staff_on_duty UUID[] DEFAULT ARRAY[]::UUID[],
+  patron_counts JSONB,
+  weather JSONB,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  submitted_at TIMESTAMPTZ,
+  approved_at TIMESTAMPTZ
+);
 
-**Technical Specs:**
-- Reports stored in `submissions` table
-- PDF generation via Chromic (headless Chrome)
-- Email via Swoosh + SendGrid
-- Auto-save via Phoenix LiveView events
+-- Indexes
+CREATE INDEX idx_shift_reports_facility_date ON shift_reports(facility_id, shift_date DESC);
+CREATE INDEX idx_shift_reports_status ON shift_reports(status);
+
+-- Enable RLS
+ALTER TABLE shift_reports ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view reports in their organization"
+  ON shift_reports FOR SELECT
+  USING (organization_id = get_user_organization_id());
+
+CREATE POLICY "Users can create reports"
+  ON shift_reports FOR INSERT
+  WITH CHECK (organization_id = get_user_organization_id());
+```
+
+#### Report Creation Interface
+- [ ] Build shift report form page
+  ```typescript
+  // src/pages/ShiftReportPage.tsx
+  const ShiftReportPage = () => {
+    const { formSchema } = useFormSchema('daily_report');
+    const { mutate: saveReport } = useSaveReport();
+
+    // Auto-save every 30 seconds
+    useAutoSave(formData, saveReport, 30000);
+
+    return (
+      <div className="container mx-auto py-6">
+        <PageHeader
+          title="Daily Shift Report"
+          subtitle={`${shiftType} - ${format(shiftDate, 'MMMM d, yyyy')}`}
+        />
+        <DynamicForm
+          schema={formSchema}
+          onSubmit={handleSubmit}
+          autoSave={true}
+        />
+      </div>
+    );
+  };
+  ```
+
+- [ ] Implement auto-save functionality
+  ```typescript
+  const useAutoSave = (data: any, saveFn: Function, interval: number) => {
+    const [lastSaved, setLastSaved] = useState<Date>(new Date());
+
+    useEffect(() => {
+      const timer = setInterval(() => {
+        saveFn(data);
+        setLastSaved(new Date());
+      }, interval);
+
+      return () => clearInterval(timer);
+    }, [data]);
+
+    return { lastSaved };
+  };
+  ```
+
+- [ ] Create photo upload component
+  ```typescript
+  // src/components/PhotoUpload.tsx
+  import { useUploadThing } from '@/lib/upload';
+
+  const PhotoUpload = () => {
+    const { upload, progress } = useUploadThing();
+
+    const handleUpload = async (files: File[]) => {
+      const compressed = await Promise.all(
+        files.map(file => compressImage(file, 500)) // 500KB max
+      );
+
+      const urls = await upload(compressed);
+      return urls;
+    };
+
+    return (
+      <Uppy
+        onUpload={handleUpload}
+        maxFiles={10}
+        allowedTypes={['image/*']}
+      />
+    );
+  };
+  ```
+
+- [ ] Build patron count tracking
+  ```typescript
+  interface PatronCount {
+    area: string;
+    timeBlock: string;
+    count: number;
+  }
+
+  const PatronCountTable = () => {
+    const [counts, setCounts] = useState<PatronCount[]>([]);
+
+    return (
+      <div className="grid grid-cols-3 gap-4">
+        {areas.map(area => (
+          <Card key={area}>
+            <CardHeader>{area}</CardHeader>
+            <CardContent>
+              <Input
+                type="number"
+                value={counts.find(c => c.area === area)?.count}
+                onChange={(e) => updateCount(area, e.target.value)}
+              />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  };
+  ```
+
+#### Shift Handoff System
+- [ ] Create handoff notes component
+  ```typescript
+  const ShiftHandoff = () => {
+    const { data: outstandingIssues } = useOutstandingIssues();
+    const { data: priorityTasks } = usePriorityTasks();
+
+    return (
+      <Card>
+        <CardHeader>Shift Handoff</CardHeader>
+        <CardContent>
+          <Tabs>
+            <TabsList>
+              <TabsTrigger>Outstanding Issues</TabsTrigger>
+              <TabsTrigger>Priority Tasks</TabsTrigger>
+              <TabsTrigger>Notes</TabsTrigger>
+            </TabsList>
+            <TabsContent>
+              {/* Content for each tab */}
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
+    );
+  };
+  ```
+
+#### Report Export & Distribution
+- [ ] Implement PDF generation
+  ```typescript
+  // src/lib/pdf-generator.ts
+  import { jsPDF } from 'jspdf';
+  import html2canvas from 'html2canvas';
+
+  export const generateReportPDF = async (reportId: string) => {
+    const element = document.getElementById(`report-${reportId}`);
+    const canvas = await html2canvas(element!);
+
+    const pdf = new jsPDF();
+    const imgData = canvas.toDataURL('image/png');
+    pdf.addImage(imgData, 'PNG', 10, 10, 190, 0);
+
+    return pdf.output('blob');
+  };
+  ```
+
+- [ ] Build email delivery system (Supabase Edge Function)
+  ```typescript
+  // supabase/functions/send-eod-report/index.ts
+  import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+  import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+  serve(async (req) => {
+    const { reportId } = await req.json();
+
+    // Fetch report data
+    // Generate PDF
+    // Send email via Resend or SendGrid
+
+    return new Response(JSON.stringify({ success: true }), {
+      headers: { 'Content-Type': 'application/json' },
+    });
+  });
+  ```
 
 ### 1.3 Module: Incident & Accident Reporting
-**Critical for liability protection and regulatory compliance**
 
-- [ ] Incident data model
-  - Type classification (injury, illness, property, behavioral, near-miss)
-  - Severity levels (minor, moderate, severe, critical)
-  - OSHA reportable flagging
-  - Insurance claim linking
-- [ ] Interactive diagrams
-  - SVG body diagram (front/back injury marking)
-  - Facility floor plan (incident location)
-  - Click-to-mark interface
-  - Annotation tools
-- [ ] Comprehensive documentation
-  - Witness information collection
-  - Timeline of events
-  - Staff response documentation
-  - EMS call logging
-  - Photo/video evidence upload (50MB max video)
-- [ ] Notification engine
-  - Severity-based routing
-  - Email to risk management
-  - SMS for critical incidents
-  - Escalation timers
-- [ ] Follow-up tracking
-  - Action item creation
-  - Assignment to staff
-  - Status tracking
-  - Resolution documentation
-- [ ] OSHA 300 log integration
-  - Automatic log population
-  - Export in OSHA format
-  - Privacy case flagging
+#### Database Schema
+```sql
+CREATE TABLE incidents (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
+  facility_id UUID REFERENCES facilities(id) ON DELETE CASCADE,
+  reported_by UUID REFERENCES profiles(id),
+  incident_number TEXT UNIQUE NOT NULL, -- Auto-generated
+  incident_type TEXT NOT NULL CHECK (incident_type IN
+    ('injury', 'illness', 'property_damage', 'behavioral', 'near_miss')),
+  severity TEXT NOT NULL CHECK (severity IN
+    ('minor', 'moderate', 'severe', 'critical')),
+  occurred_at TIMESTAMPTZ NOT NULL,
+  location TEXT NOT NULL,
+  location_diagram JSONB, -- Coordinates on facility map
+  body_diagram JSONB, -- Injury locations on body diagram
+  description TEXT NOT NULL,
+  witnesses JSONB DEFAULT '[]',
+  photos TEXT[] DEFAULT ARRAY[]::TEXT[],
+  videos TEXT[] DEFAULT ARRAY[]::TEXT[],
+  ems_called BOOLEAN DEFAULT false,
+  ems_arrived_at TIMESTAMPTZ,
+  staff_response TEXT,
+  follow_up_required BOOLEAN DEFAULT false,
+  follow_up_notes TEXT,
+  osha_reportable BOOLEAN DEFAULT false,
+  insurance_claim_number TEXT,
+  status TEXT DEFAULT 'open' CHECK (status IN ('open', 'investigating', 'resolved', 'closed')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
 
-**Technical Specs:**
-- Incident table with JSONB for diagrams
-- Real-time notifications via Phoenix PubSub
-- Video upload via Supabase Storage with progress
-- OSHA export via CSV generator
+-- Auto-generate incident number
+CREATE OR REPLACE FUNCTION generate_incident_number()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.incident_number := 'INC-' ||
+    to_char(NEW.occurred_at, 'YYYYMMDD') || '-' ||
+    LPAD(nextval('incident_number_seq')::text, 4, '0');
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE SEQUENCE incident_number_seq;
+CREATE TRIGGER set_incident_number
+  BEFORE INSERT ON incidents
+  FOR EACH ROW EXECUTE FUNCTION generate_incident_number();
+```
+
+#### Interactive Diagrams
+- [ ] Build body diagram component
+  ```typescript
+  // src/components/BodyDiagram.tsx
+  import { useState } from 'react';
+
+  const BodyDiagram = ({ value, onChange }: BodyDiagramProps) => {
+    const [marks, setMarks] = useState<Mark[]>(value || []);
+    const [view, setView] = useState<'front' | 'back'>('front');
+
+    const handleClick = (e: React.MouseEvent<SVGElement>) => {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = ((e.clientX - rect.left) / rect.width) * 100;
+      const y = ((e.clientY - rect.top) / rect.height) * 100;
+
+      const newMark = { x, y, view, type: 'injury' };
+      const updated = [...marks, newMark];
+      setMarks(updated);
+      onChange(updated);
+    };
+
+    return (
+      <div className="space-y-4">
+        <Tabs value={view} onValueChange={setView}>
+          <TabsList>
+            <TabsTrigger value="front">Front</TabsTrigger>
+            <TabsTrigger value="back">Back</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        <svg
+          viewBox="0 0 200 500"
+          className="w-full max-w-md border cursor-crosshair"
+          onClick={handleClick}
+        >
+          {/* Body SVG paths */}
+          <BodySVG view={view} />
+
+          {/* Injury marks */}
+          {marks
+            .filter(m => m.view === view)
+            .map((mark, i) => (
+              <circle
+                key={i}
+                cx={mark.x}
+                cy={mark.y}
+                r="5"
+                fill="red"
+                className="cursor-pointer"
+                onClick={() => removeMark(i)}
+              />
+            ))}
+        </svg>
+      </div>
+    );
+  };
+  ```
+
+- [ ] Build facility map diagram
+  ```typescript
+  // Similar to body diagram but with custom facility floor plan SVG
+  const FacilityMap = ({ facilityId, value, onChange }) => {
+    const { data: floorPlan } = useFloorPlan(facilityId);
+
+    // Same marking logic as body diagram
+    // Allow uploading custom floor plan SVG
+  };
+  ```
+
+#### Incident Form
+- [ ] Create incident report form
+  ```typescript
+  const IncidentReportForm = () => {
+    const form = useForm<IncidentFormData>({
+      resolver: zodResolver(incidentSchema),
+    });
+
+    return (
+      <Form {...form}>
+        <FormField name="incident_type" />
+        <FormField name="severity" />
+        <FormField name="occurred_at" />
+        <FormField name="location" />
+
+        <FormField
+          name="location_diagram"
+          render={({ field }) => (
+            <FacilityMap {...field} />
+          )}
+        />
+
+        <FormField
+          name="body_diagram"
+          render={({ field }) => (
+            <BodyDiagram {...field} />
+          )}
+        />
+
+        <FormField name="description" />
+        <WitnessesFieldArray />
+        <PhotoUpload />
+        <VideoUpload maxSize={50 * 1024 * 1024} /> {/* 50MB */}
+      </Form>
+    );
+  };
+  ```
+
+#### Notification System
+- [ ] Build notification engine (Supabase Edge Function)
+  ```typescript
+  // supabase/functions/incident-notifications/index.ts
+
+  const notifyIncident = async (incident: Incident) => {
+    const { severity, facility_id } = incident;
+
+    // Get notification rules for this facility
+    const rules = await getNotificationRules(facility_id);
+
+    // Severity-based routing
+    if (severity === 'critical') {
+      await sendSMS(rules.emergency_contacts);
+      await sendEmail(rules.emergency_contacts);
+      await sendSlack(rules.slack_webhook);
+    } else if (severity === 'severe') {
+      await sendEmail(rules.manager_emails);
+    }
+
+    // Always notify risk management
+    await sendEmail(rules.risk_management_email);
+  };
+  ```
+
+- [ ] Create real-time notifications
+  ```typescript
+  // src/hooks/useIncidentNotifications.ts
+  import { useEffect } from 'react';
+  import { supabase } from '@/lib/supabase';
+  import { toast } from 'sonner';
+
+  export const useIncidentNotifications = () => {
+    useEffect(() => {
+      const channel = supabase
+        .channel('incidents')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'incidents',
+          },
+          (payload) => {
+            const incident = payload.new;
+
+            if (incident.severity === 'critical') {
+              toast.error(`Critical Incident: ${incident.incident_number}`, {
+                description: incident.description,
+                action: {
+                  label: 'View',
+                  onClick: () => navigate(`/incidents/${incident.id}`),
+                },
+              });
+            }
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }, []);
+  };
+  ```
+
+#### OSHA Integration
+- [ ] Create OSHA 300 log export
+  ```typescript
+  const generateOSHA300Log = async (facilityId: string, year: number) => {
+    const incidents = await supabase
+      .from('incidents')
+      .select('*')
+      .eq('facility_id', facilityId)
+      .eq('osha_reportable', true)
+      .gte('occurred_at', `${year}-01-01`)
+      .lte('occurred_at', `${year}-12-31`);
+
+    // Format as OSHA 300 CSV
+    return formatOSHA300CSV(incidents.data);
+  };
+  ```
 
 ### 1.4 Module: Opening & Closing Checklists
-**Ensure consistent facility preparation and shutdown**
 
-- [ ] Checklist data model
-  - Opening vs. closing separation
-  - Area-specific task lists
-  - Task dependencies (can't do B until A done)
-  - Time-stamped completion
-  - Photo verification requirements
-- [ ] Task management system
-  - Assignment to specific staff
-  - Priority ordering
-  - Estimated time per task
-  - Recurring task templates
-  - Seasonal variations
-- [ ] Verification mechanisms
-  - Photo requirement enforcement
-  - Digital signature capture
-  - Manager override capability
-  - Deviation logging with reasons
-- [ ] Embedded training
-  - Video tutorials per task
-  - Photo examples
-  - Step-by-step instructions
-  - Safety warnings
-- [ ] Escalation system
-  - Overdue task alerts (15 min)
-  - Manager notifications
-  - Incomplete checklist blocking
-  - Emergency override procedures
+#### Database Schema
+```sql
+CREATE TABLE checklists (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
+  facility_id UUID REFERENCES facilities(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  checklist_type TEXT NOT NULL CHECK (checklist_type IN ('opening', 'closing', 'hourly', 'daily')),
+  tasks JSONB NOT NULL, -- Array of tasks with dependencies
+  active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
 
-**Technical Specs:**
-- Task dependency graph (DAG validation)
-- Video streaming from Supabase Storage
-- Photo requirement validation before completion
-- Push notifications via Phoenix Channels
+CREATE TABLE checklist_completions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  checklist_id UUID REFERENCES checklists(id) ON DELETE CASCADE,
+  facility_id UUID REFERENCES facilities(id) ON DELETE CASCADE,
+  completion_date DATE NOT NULL,
+  completed_by UUID REFERENCES profiles(id),
+  tasks_completed JSONB NOT NULL, -- Task completion status with timestamps
+  photos JSONB, -- Photos per task
+  deviations TEXT,
+  signature TEXT, -- Data URL of signature
+  completed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
 
-### 1.5 Mobile PWA Development
-**Critical for front-line staff adoption**
+#### Checklist Builder
+- [ ] Create task dependency system
+  ```typescript
+  interface ChecklistTask {
+    id: string;
+    title: string;
+    description: string;
+    requiresPhoto: boolean;
+    estimatedMinutes: number;
+    dependencies: string[]; // IDs of tasks that must be completed first
+    videoUrl?: string; // Training video
+    photoExampleUrl?: string;
+  }
 
-- [ ] PWA infrastructure
-  - Service worker for offline support
-  - App manifest for installation
-  - IndexedDB for local storage
-  - Background sync for data upload
-- [ ] Offline-first architecture
-  - Queue all writes locally
-  - Sync when connection restored
-  - Conflict resolution strategy
-  - Visual sync status indicators
-- [ ] Mobile UI/UX
-  - Bottom navigation
-  - Swipe gestures
-  - Large touch targets (44x44px min)
-  - Dark mode support
-  - Haptic feedback
-- [ ] Camera integration
-  - In-app photo capture
-  - Photo annotation tools
-  - Image compression (500KB max)
-  - Before/after comparisons
-- [ ] Performance optimization
-  - Lazy loading
-  - Image optimization
-  - Minimal JavaScript payload
-  - Asset caching strategy
-- [ ] Install prompts
-  - iOS Add to Home Screen guide
-  - Android install prompt
-  - Desktop PWA support
+  const TaskDependencyGraph = ({ tasks, onChange }) => {
+    // Visual graph showing task dependencies
+    // Prevent circular dependencies
+    // Validate completion order
+  };
+  ```
 
-**Technical Specs:**
-- Service Worker for offline
-- IndexedDB via localForage
-- Image compression via Canvas API
-- LiveView JS Hooks for camera
+- [ ] Build checklist management UI
+  ```typescript
+  const ChecklistBuilder = () => {
+    const [tasks, setTasks] = useState<ChecklistTask[]>([]);
 
-### 1.6 User Management & Onboarding
-- [ ] Organization setup wizard
-  - Facility creation
-  - Initial admin user
-  - Branding configuration
-  - Module activation
-- [ ] User invitation system
-  - Bulk invite via CSV
-  - Email invitations
-  - Role assignment
-  - Facility assignment
-- [ ] User onboarding flow
-  - Welcome tutorial
-  - Role-specific guides
-  - Sample data
-  - Video walkthroughs
-- [ ] Profile management
-  - Profile photo upload
-  - Contact information
-  - Notification preferences
-  - Timezone settings
+    const addTask = () => {
+      setTasks([...tasks, createEmptyTask()]);
+    };
 
-### 1.7 Basic Dashboard
-- [ ] Facility status overview
-  - Current shift information
-  - Open incidents count
-  - Pending tasks count
-  - Staff on duty
-- [ ] Today's activity feed
-  - Recent reports submitted
-  - Tasks completed
-  - Incidents reported
-  - Photos uploaded
-- [ ] Quick actions
-  - Start shift report
-  - Report incident
-  - Complete checklist
-  - View schedule
-- [ ] Role-based views
-  - Staff: My tasks, my reports
-  - Supervisor: Team tasks, shift status
-  - Manager: Facility overview, analytics
+    return (
+      <div>
+        <DndContext onDragEnd={handleReorder}>
+          <SortableContext items={tasks}>
+            {tasks.map(task => (
+              <TaskCard
+                key={task.id}
+                task={task}
+                onUpdate={updateTask}
+                onDelete={deleteTask}
+              />
+            ))}
+          </SortableContext>
+        </DndContext>
+        <Button onClick={addTask}>Add Task</Button>
+      </div>
+    );
+  };
+  ```
+
+#### Checklist Completion Interface
+- [ ] Create mobile-optimized checklist UI
+  ```typescript
+  const ChecklistCompletion = ({ checklistId }: Props) => {
+    const { data: checklist } = useChecklist(checklistId);
+    const [completed, setCompleted] = useState<Record<string, boolean>>({});
+    const [photos, setPhotos] = useState<Record<string, string[]>>({});
+
+    const canCompleteTask = (taskId: string) => {
+      const task = checklist.tasks.find(t => t.id === taskId);
+      return task?.dependencies.every(dep => completed[dep]) ?? false;
+    };
+
+    const completeTask = async (taskId: string) => {
+      const task = checklist.tasks.find(t => t.id === taskId);
+
+      // Validate photo if required
+      if (task.requiresPhoto && !photos[taskId]?.length) {
+        toast.error('Photo required for this task');
+        return;
+      }
+
+      setCompleted({ ...completed, [taskId]: true });
+    };
+
+    return (
+      <div className="space-y-4 pb-20">
+        {checklist.tasks.map(task => (
+          <Card
+            key={task.id}
+            className={cn(
+              !canCompleteTask(task.id) && 'opacity-50',
+              completed[task.id] && 'bg-green-50'
+            )}
+          >
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">{task.title}</CardTitle>
+                <Checkbox
+                  checked={completed[task.id]}
+                  onCheckedChange={() => completeTask(task.id)}
+                  disabled={!canCompleteTask(task.id)}
+                />
+              </div>
+            </CardHeader>
+
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-4">
+                {task.description}
+              </p>
+
+              {task.videoUrl && (
+                <video src={task.videoUrl} controls className="w-full mb-4" />
+              )}
+
+              {task.requiresPhoto && (
+                <PhotoCapture
+                  value={photos[task.id]}
+                  onChange={(urls) => setPhotos({ ...photos, [task.id]: urls })}
+                  required
+                />
+              )}
+
+              <Badge variant="secondary">
+                Est. {task.estimatedMinutes} min
+              </Badge>
+            </CardContent>
+          </Card>
+        ))}
+
+        {/* Signature */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Completion Signature</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <SignaturePad onChange={setSignature} />
+          </CardContent>
+        </Card>
+
+        <Button
+          size="lg"
+          className="w-full"
+          disabled={!allTasksCompleted}
+          onClick={submitChecklist}
+        >
+          Submit Checklist
+        </Button>
+      </div>
+    );
+  };
+  ```
+
+- [ ] Implement escalation system
+  ```typescript
+  // Escalate if checklist not completed by expected time
+  const useChecklistEscalation = (checklistId: string, expectedTime: Date) => {
+    useEffect(() => {
+      const checkTime = setInterval(() => {
+        const now = new Date();
+        const overdue = differenceInMinutes(now, expectedTime);
+
+        if (overdue > 15 && !isCompleted) {
+          // Send notification to manager
+          notifyManager({
+            type: 'overdue_checklist',
+            checklistId,
+            minutesOverdue: overdue,
+          });
+        }
+      }, 60000); // Check every minute
+
+      return () => clearInterval(checkTime);
+    }, []);
+  };
+  ```
+
+### 1.5 Mobile PWA Enhancements
+- [ ] Optimize for mobile performance
+  - Lazy load images
+  - Virtual scrolling for long lists
+  - Optimize bundle size
+  - Prefetch critical data
+
+- [ ] Implement camera features
+  ```typescript
+  const CameraCapture = ({ onCapture }: Props) => {
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const [stream, setStream] = useState<MediaStream | null>(null);
+
+    const startCamera = async () => {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' }, // Back camera
+      });
+      setStream(mediaStream);
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+      }
+    };
+
+    const capturePhoto = () => {
+      const canvas = document.createElement('canvas');
+      const video = videoRef.current!;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(video, 0, 0);
+
+      canvas.toBlob(async (blob) => {
+        const compressed = await compressImage(blob!, 500); // 500KB
+        onCapture(compressed);
+      }, 'image/jpeg', 0.9);
+    };
+
+    return (
+      <div>
+        <video ref={videoRef} autoPlay playsInline className="w-full" />
+        <Button onClick={capturePhoto}>Capture</Button>
+      </div>
+    );
+  };
+  ```
+
+- [ ] Add install prompts
+  ```typescript
+  const useInstallPrompt = () => {
+    const [installPrompt, setInstallPrompt] = useState<any>(null);
+
+    useEffect(() => {
+      const handler = (e: Event) => {
+        e.preventDefault();
+        setInstallPrompt(e);
+      };
+
+      window.addEventListener('beforeinstallprompt', handler);
+      return () => window.removeEventListener('beforeinstallprompt', handler);
+    }, []);
+
+    const promptInstall = async () => {
+      if (!installPrompt) return;
+
+      installPrompt.prompt();
+      const { outcome } = await installPrompt.userChoice;
+
+      if (outcome === 'accepted') {
+        setInstallPrompt(null);
+      }
+    };
+
+    return { canInstall: !!installPrompt, promptInstall };
+  };
+  ```
+
+### 1.6 Dashboard & Navigation
+- [ ] Create main dashboard
+  ```typescript
+  const Dashboard = () => {
+    const { user, organization } = useAuth();
+    const { data: todayStats } = useTodayStats();
+    const { data: openIncidents } = useOpenIncidents();
+    const { data: pendingTasks } = usePendingTasks();
+
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          title={`Welcome back, ${user.first_name}`}
+          subtitle={organization.name}
+        />
+
+        {/* Stats Grid */}
+        <div className="grid gap-4 md:grid-cols-4">
+          <StatsCard
+            title="Reports Today"
+            value={todayStats?.reports}
+            icon={FileText}
+          />
+          <StatsCard
+            title="Open Incidents"
+            value={openIncidents?.length}
+            icon={AlertTriangle}
+            variant="warning"
+          />
+          <StatsCard
+            title="Pending Tasks"
+            value={pendingTasks?.length}
+            icon={CheckSquare}
+          />
+          <StatsCard
+            title="Staff On Duty"
+            value={todayStats?.staffCount}
+            icon={Users}
+          />
+        </div>
+
+        {/* Quick Actions */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Quick Actions</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4 md:grid-cols-3">
+            <Button size="lg" asChild>
+              <Link to="/reports/new">
+                <FileText className="mr-2" />
+                New Shift Report
+              </Link>
+            </Button>
+            <Button size="lg" variant="destructive" asChild>
+              <Link to="/incidents/new">
+                <AlertTriangle className="mr-2" />
+                Report Incident
+              </Link>
+            </Button>
+            <Button size="lg" variant="secondary" asChild>
+              <Link to="/checklists">
+                <CheckSquare className="mr-2" />
+                Complete Checklist
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Activity Feed */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Activity</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ActivityFeed />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  };
+  ```
+
+- [ ] Build navigation system
+  ```typescript
+  // Desktop sidebar + mobile bottom nav
+  const AppLayout = () => {
+    return (
+      <div className="min-h-screen">
+        {/* Desktop Sidebar */}
+        <aside className="hidden md:block w-64 border-r">
+          <Sidebar />
+        </aside>
+
+        {/* Main Content */}
+        <main className="md:ml-64 pb-16 md:pb-0">
+          <Outlet />
+        </main>
+
+        {/* Mobile Bottom Nav */}
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 border-t bg-background">
+          <BottomNavigation />
+        </nav>
+      </div>
+    );
+  };
+  ```
 
 **Phase 1 Deliverables:**
-- ✅ 3 core modules fully functional
-- ✅ Admin form builder operational
+- ✅ Form builder fully functional
+- ✅ 3 core modules operational
 - ✅ Mobile PWA installable
+- ✅ Real-time features working
 - ✅ 5 beta customers onboarded
-- ✅ 100+ real-world reports submitted
 
 **Success Metrics:**
-- Beta customer satisfaction: 8+/10
-- Report completion time: <5 minutes
-- Mobile app rating: 4.5+ stars
-- System uptime: 99.5%+
-- Task completion rate: 85%+
+- Beta satisfaction: 8+/10
+- Report completion: <5 min
+- Mobile Lighthouse: >90
+- Daily active usage: 75%+
 
 ---
 
@@ -389,155 +1696,57 @@
 **Goal:** Expand to 25 customers with comprehensive facility management
 
 ### 2.1 Module: Facility Condition Tracking
-- [ ] Area inspection system
-  - Customizable area definitions
-  - Pass/Fail/NA checklists
-  - Temperature/humidity logging
-  - Trend visualization
-- [ ] Floor plan integration
-  - SVG floor plan upload
-  - Issue marking on plans
-  - Photo pinning to locations
-  - Area-based filtering
+- [ ] Area inspection system with floor plans
+- [ ] Pass/Fail/NA checklist system
+- [ ] Temperature/humidity logging
+- [ ] Trend visualization
 - [ ] Automated scheduling
-  - Recurring inspections (hourly, daily, weekly)
-  - Reminder notifications
-  - Overdue escalation
-  - Compliance tracking
 - [ ] Condition analytics
-  - Trend charts over time
-  - Problem area identification
-  - Predictive maintenance flags
 
 ### 2.2 Module: Equipment Inspection Logs
-- [ ] Equipment inventory system
-  - Hierarchical categorization
-  - QR code generation (bulk)
-  - Serial number tracking
-  - Warranty management
-- [ ] QR code scanning
-  - Mobile camera scan
-  - Instant equipment lookup
-  - Inspection history display
-  - Quick status update
-- [ ] Maintenance tracking
-  - Service history timeline
-  - Part replacement logs
-  - Cost tracking
-  - Vendor management
-- [ ] Preventive maintenance
-  - PM schedule automation
-  - Calendar integration
-  - Reminder system
-  - Completion verification
-- [ ] Equipment lifecycle
-  - Purchase date tracking
-  - Depreciation calculation
-  - Repair vs. replace analysis
-  - End-of-life planning
+- [ ] Equipment inventory with QR codes
+- [ ] QR code scanning (mobile camera)
+- [ ] Maintenance history tracking
+- [ ] Preventive maintenance scheduling
+- [ ] Cost tracking
+- [ ] Equipment lifecycle management
 
 ### 2.3 Module: Pool Chemistry & Aquatics
 - [ ] Multi-pool configuration
-  - Pool types (lap, leisure, spa, splash pad)
-  - Chemistry parameter ranges
-  - Test frequency rules
-  - Regulatory compliance tracking
-- [ ] Chemistry logging
-  - 10+ parameter tracking
-  - Auto-validation against ranges
-  - Out-of-range alerts
-  - Trend analysis
-- [ ] Chemical management
-  - Dosing calculations
-  - Inventory tracking
-  - Usage forecasting
-  - SDS sheet library
-- [ ] Aquatics operations
-  - Lifeguard rotation schedules
-  - Rescue equipment checks
-  - Pool deck inspections
-  - Filter/pump logs
-- [ ] Health department compliance
-  - Auto-generated reports
-  - Violation tracking
-  - Corrective action documentation
-  - Inspection preparation
+- [ ] Chemistry parameter logging (10+ parameters)
+- [ ] Auto-validation and alerts
+- [ ] Chemical dosing calculations
+- [ ] Inventory management
+- [ ] Health department compliance tracking
 
 ### 2.4 Module: Maintenance Request System
-- [ ] Work order management
-  - Creation from any module
-  - Priority-based routing
-  - Category classification
-  - Photo/video attachment
-- [ ] Assignment & tracking
-  - Staff assignment
-  - Vendor assignment
-  - Status updates
-  - Time tracking
-- [ ] Cost management
-  - Estimate vs. actual
-  - Budget tracking
-  - Parts inventory
-  - Labor costs
-- [ ] Integration preparation
-  - Connect2 API connector
-  - CMMS webhook support
-  - Export to external systems
+- [ ] Work order creation and tracking
+- [ ] Priority-based routing
+- [ ] Photo/video attachment
+- [ ] Cost estimation
+- [ ] Vendor management
+- [ ] Integration prep (Connect2 API)
 
 ### 2.5 Multi-Facility Management
-- [ ] Organization hierarchy
-  - Org → Facilities → Departments
-  - Cross-facility user access
-  - Centralized admin controls
-  - Facility groups/regions
-- [ ] Cross-facility features
-  - Facility selector UI
-  - Aggregated dashboards
-  - Comparison reports
-  - Template sharing
-- [ ] Consolidated reporting
-  - Multi-facility analytics
-  - Performance rankings
-  - Best practice sharing
-  - Trend comparisons
+- [ ] Organization hierarchy (Org → Facilities → Departments)
+- [ ] Cross-facility dashboards
+- [ ] Comparison reports
+- [ ] Template sharing
+- [ ] Consolidated analytics
 
-### 2.6 Enhanced Offline Capabilities
-- [ ] Advanced sync engine
-  - Differential sync (only changes)
-  - Conflict resolution UI
-  - Retry logic with exponential backoff
-  - Sync status dashboard
-- [ ] Offline photo handling
-  - Queue management
-  - Compression before upload
-  - Upload prioritization
-  - Storage limit management
-- [ ] Data pruning
-  - Local storage cleanup
-  - Selective sync (recent data only)
-  - Manual refresh capability
+### 2.6 Advanced Offline Sync
+- [ ] Differential sync (only changes)
+- [ ] Conflict resolution UI
+- [ ] Retry logic with exponential backoff
+- [ ] Sync status dashboard
+- [ ] Selective sync preferences
 
-### 2.7 Advanced Dashboard & Analytics
+### 2.7 Enhanced Analytics
 - [ ] Custom dashboard builder
-  - Widget library
-  - Drag-and-drop layout
-  - Save dashboard templates
-  - Role-based defaults
-- [ ] KPI tracking
-  - Configurable metrics
-  - Target setting
-  - Progress visualization
-  - Alert thresholds
-- [ ] Data visualization
-  - Chart.js integration
-  - Multiple chart types
-  - Interactive filters
-  - Drill-down capability
+- [ ] KPI tracking with targets
+- [ ] Data visualizations (Recharts)
 - [ ] Scheduled reports
-  - Report builder
-  - Email delivery
-  - PDF/Excel export
-  - Frequency configuration
+- [ ] Export to Excel/PDF
 
 **Phase 2 Deliverables:**
 - ✅ 7 total modules operational
@@ -546,595 +1755,95 @@
 - ✅ Full offline capability
 - ✅ Advanced analytics
 
-**Success Metrics:**
-- Customer count: 25+
-- Monthly recurring revenue: $25K+
-- Churn rate: <5%
-- Daily active users: 75%+
-- Support ticket volume: <5/customer/month
-
 ---
 
 ## Phase 3: Integration & Scale (Weeks 29-40)
 **Goal:** Scale to 75 customers with enterprise integrations
 
 ### 3.1 Module: Staff Communication & Tasks
-- [ ] Shift handoff system
-  - Structured handoff notes
-  - Priority flagging
-  - Acknowledgment tracking
-  - Handoff history
-- [ ] Task management
-  - Create/assign/track tasks
-  - Due dates and reminders
-  - Recurring task templates
-  - Workload balancing
-- [ ] Team communication
-  - In-app messaging
-  - @mentions and notifications
-  - File attachments
-  - Message threading
-- [ ] Performance tracking
-  - Task completion rates
-  - Time-to-complete metrics
-  - Staff performance dashboards
-  - Recognition system
-
 ### 3.2 Module: Patron Count & Analytics
-- [ ] Real-time headcount
-  - Manual check-in
-  - Barcode scanner integration
-  - RFID integration
-  - Turnstile integration
-- [ ] Capacity management
-  - Area capacity limits
-  - Threshold alerts
-  - Waitlist management
-  - Public capacity widget
-- [ ] Usage analytics
-  - Peak time identification
-  - Demographic breakdown
-  - Program participation
-  - Trend analysis
-- [ ] Business intelligence
-  - Revenue correlation
-  - Space utilization
-  - Staffing optimization
-  - Programming recommendations
-
-### 3.3 Module: Emergency Response
-- [ ] Emergency procedures
-  - Type-specific protocols
-  - Evacuation checklists
-  - EMS contact lists
-  - Equipment location maps
-- [ ] Emergency documentation
-  - Rapid incident logging
-  - AED deployment tracking
-  - CPR documentation
-  - Timeline reconstruction
-- [ ] Drill management
-  - Drill scheduling
-  - Participation tracking
-  - After-action reviews
-  - Improvement tracking
-- [ ] Staff readiness
-  - Certification tracking
-  - Expiration alerts
-  - Training requirements
-  - Emergency contact lists
-
-### 3.4 Connect2 Integration
-- [ ] API integration
-  - OAuth authentication
-  - Incident sync (bidirectional)
-  - Asset data sync
-  - Work order sync
-- [ ] Data mapping
-  - Field mapping configuration
-  - Data transformation rules
-  - Sync frequency settings
-  - Error handling
-- [ ] Smart forms integration
-  - Form template import
-  - Submission export
-  - Attachment sync
-
-### 3.5 SubItUp Integration
-- [ ] Schedule import
-  - Staff schedule sync
-  - Shift assignment
-  - Time-off tracking
-- [ ] Timesheet export
-  - Task completion → timesheets
-  - Labor tracking
-  - Payroll integration preparation
-
-### 3.6 Public API Development
-- [ ] RESTful API
-  - Full CRUD operations
-  - Resource-based endpoints
-  - Pagination support
-  - Filtering and sorting
-- [ ] API documentation
-  - OpenAPI/Swagger spec
-  - Interactive documentation
-  - Code examples (multiple languages)
-  - Webhook documentation
-- [ ] API security
-  - OAuth 2.0 implementation
-  - API key management
-  - Rate limiting (1000/hour)
-  - Scope-based permissions
-- [ ] Webhooks
-  - Event subscription
-  - Delivery management
-  - Retry logic
-  - Webhook logs
-
-### 3.7 Advanced Reporting
-- [ ] Report builder
-  - Drag-and-drop report designer
-  - Custom filters
-  - Calculated fields
-  - Grouping and aggregation
-- [ ] Report templates
-  - 50+ pre-built reports
-  - Industry-specific templates
-  - Compliance report packages
-  - Custom template creation
-- [ ] Export formats
-  - PDF (professional formatting)
-  - Excel (with formulas)
-  - CSV (bulk data)
-  - JSON (API integration)
-- [ ] Automated delivery
-  - Email scheduling
-  - Recipient lists
-  - Conditional delivery
-  - Report subscriptions
-
-### 3.8 Performance Optimization
-- [ ] Database optimization
-  - Query optimization
-  - Index tuning
-  - Materialized views for analytics
-  - Partition large tables
-- [ ] Caching strategy
-  - Redis/Cachex integration
-  - Cache invalidation
-  - Page caching
-  - API response caching
-- [ ] Asset optimization
-  - CDN configuration
-  - Image lazy loading
-  - Code splitting
-  - Minification
-- [ ] Load testing
-  - Simulate 500 concurrent users/org
-  - Identify bottlenecks
-  - Capacity planning
-  - Stress testing
-
-**Phase 3 Deliverables:**
-- ✅ 10 total modules operational
-- ✅ 75 paying customers
-- ✅ 2 major integrations live
-- ✅ Public API available
-- ✅ Advanced reporting suite
-
-**Success Metrics:**
-- Customer count: 75+
-- MRR: $75K+
-- API usage: 100K+ requests/month
-- System handles 500 users/org smoothly
-- Page load: <1.5s
-- API response: <150ms p95
+### 3.3 Module: Emergency Response Documentation
+### 3.4 Connect2 Integration (REST API)
+### 3.5 SubItUp Integration (Schedule sync)
+### 3.6 Public REST API with OAuth
+### 3.7 Webhooks System
+### 3.8 Advanced Reporting Suite
 
 ---
 
 ## Phase 4: Enterprise & Advanced Features (Weeks 41-52)
-**Goal:** Reach 150 customers with full feature set and enterprise capabilities
+**Goal:** Reach 150 customers with full enterprise capabilities
 
 ### 4.1 Module: Fitness Floor Management
-- [ ] Equipment status board
-  - Real-time availability
-  - Out-of-service flagging
-  - Equipment utilization tracking
-- [ ] Floor operations
-  - Equipment cleaning logs
-  - Audio/visual checks
-  - Towel service tracking
-  - Member count by zone
-- [ ] Programming support
-  - Personal training session logs
-  - Group fitness attendance
-  - New member orientations
-  - Fitness assessments
-- [ ] Analytics
-  - Peak usage heat maps
-  - Equipment utilization rates
-  - Programming effectiveness
-  - Space optimization
-
 ### 4.2 Module: Court & Gymnasium Operations
-- [ ] Court management
-  - Surface condition inspections
-  - Net/equipment setup logs
-  - Multi-purpose configuration
-- [ ] Reservation integration
-  - Conflict documentation
-  - Event setup checklists
-  - Breakdown verification
-- [ ] Facility systems
-  - Lighting checks
-  - Scoreboard functionality
-  - HVAC monitoring
-  - Sound system testing
-
-### 4.3 Module: Locker Room & Hygiene
-- [ ] Cleaning verification
-  - Hourly checklist reminders
-  - Photo documentation
-  - Deep cleaning schedules
-- [ ] Supply management
-  - Inventory tracking
-  - Reorder point alerts
-  - Usage forecasting
-  - Vendor management
-- [ ] Facility checks
-  - Locker condition
-  - Shower/toilet functionality
-  - Drain/plumbing issues
-  - Temperature/ventilation
-- [ ] Lost and found
-  - Item logging
-  - Photo documentation
-  - Claim tracking
-  - Disposal scheduling
-
+### 4.3 Module: Locker Room & Hygiene Management
 ### 4.4 Module: Member Services & Feedback
-- [ ] Member interactions
-  - Inquiry logging
-  - Complaint documentation
-  - Compliment tracking
-  - Suggestion collection
-- [ ] Service recovery
-  - Issue resolution tracking
-  - Compensation documentation
-  - Follow-up scheduling
-- [ ] Satisfaction measurement
-  - NPS surveys
-  - Satisfaction tracking
-  - Trend analysis
-  - Action planning
-- [ ] Member milestones
-  - Visit tracking
-  - Anniversary recognition
-  - Retention programs
-
-### 4.5 Predictive Analytics & Machine Learning
-- [ ] Predictive maintenance
-  - Equipment failure prediction
-  - Optimal replacement timing
-  - Cost optimization
-- [ ] Demand forecasting
-  - Attendance prediction
-  - Staffing optimization
-  - Resource allocation
-- [ ] Risk prediction
-  - Incident likelihood scoring
-  - High-risk area identification
-  - Preventive measures
-- [ ] Trend detection
-  - Anomaly detection
-  - Pattern recognition
-  - Automated insights
-
-### 4.6 White-Label & Enterprise Features
-- [ ] White-labeling
-  - Custom branding
-  - Custom domain
-  - Email customization
-  - Mobile app theming
-- [ ] Enterprise SSO
-  - SAML 2.0 support
-  - Azure AD integration
-  - Okta integration
-  - Google Workspace
-- [ ] Advanced security
-  - IP whitelisting
-  - Advanced audit logs
-  - Compliance certifications (SOC 2)
-  - Data residency options
-- [ ] Dedicated support
-  - Dedicated account manager
-  - Priority support queue
-  - Custom SLA agreements
-  - Training sessions
-
-### 4.7 Mobile App Enhancements
-- [ ] Native app considerations
-  - Evaluate React Native/Flutter
-  - App store presence
-  - Push notification improvements
-  - Biometric authentication
-- [ ] Performance optimization
-  - Faster load times
-  - Reduced data usage
-  - Better offline experience
-  - Battery optimization
-- [ ] Advanced features
-  - Voice commands
-  - Barcode/QR scanning improvements
-  - Augmented reality (floor plans)
-  - Wearable integration
-
-### 4.8 Billing & Subscription Management
-- [ ] Stripe integration
-  - Payment processing
-  - Subscription management
-  - Invoice generation
-  - Payment methods
-- [ ] Pricing tiers
-  - Feature-based pricing
-  - User-based pricing
-  - Usage-based pricing
-  - Custom enterprise pricing
-- [ ] Billing features
-  - Self-service upgrades
-  - Prorated charges
-  - Annual discounts
-  - Trial management
-- [ ] Revenue operations
-  - MRR tracking
-  - Churn analysis
-  - Expansion revenue
-  - Dunning management
-
-### 4.9 Customer Success Platform
-- [ ] Onboarding automation
-  - Guided setup wizard
-  - Progressive disclosure
-  - Milestone tracking
-  - Success metrics
-- [ ] In-app help
-  - Contextual help
-  - Video tutorials
-  - Interactive guides
-  - Searchable knowledge base
-- [ ] Usage analytics
-  - Feature adoption tracking
-  - User engagement scoring
-  - At-risk customer identification
-  - Expansion opportunities
-- [ ] Support integration
-  - Zendesk/Intercom integration
-  - Ticket creation
-  - Knowledge base search
-  - Chat support
-
-### 4.10 Compliance & Certifications
-- [ ] SOC 2 Type II certification
-  - Security controls
-  - Audit preparation
-  - Compliance documentation
-- [ ] HIPAA compliance (if needed)
-  - BAA agreements
-  - PHI handling
-  - Encryption requirements
-- [ ] Accessibility certification
-  - WCAG 2.1 AA compliance
-  - Screen reader testing
-  - Keyboard navigation
-  - Accessibility audit
-- [ ] Industry certifications
-  - OSHA compliance tools
-  - Health department reporting
-  - Insurance industry standards
-
-**Phase 4 Deliverables:**
-- ✅ All 15 modules operational
-- ✅ 150 paying customers
-- ✅ Predictive analytics launched
-- ✅ White-label capability
-- ✅ SOC 2 compliant
-- ✅ Platform fully mature
-
-**Success Metrics:**
-- Customer count: 150+
-- MRR: $150K+
-- ARR: $1.8M+
-- NPS: 50+
-- Churn rate: <8% annually
-- Expansion revenue: 20%+ of MRR
+### 4.5 Predictive Analytics (Optional ML)
+### 4.6 White-Label Features
+### 4.7 Enterprise SSO (SAML 2.0)
+### 4.8 Billing Integration (Stripe)
+### 4.9 SOC 2 Compliance
+### 4.10 Mobile App Enhancements
 
 ---
 
-## Cross-Phase Priorities
+## Key Lovable-Specific Considerations
 
-### Scalability & Performance (Ongoing)
-- [ ] Database performance monitoring
-  - Query performance tracking
-  - Slow query optimization
-  - Index optimization
-  - Connection pool tuning
-- [ ] Application performance
-  - Phoenix LiveView optimization
-  - Memory leak detection
-  - Garbage collection tuning
-  - Hot code reloading
-- [ ] Infrastructure scaling
-  - Auto-scaling policies
-  - Load balancer configuration
-  - Database read replicas
-  - Caching layer (Redis/Cachex)
-- [ ] Load testing cadence
-  - Monthly load tests
-  - Capacity planning
-  - Performance budgets
-  - Regression testing
+### Performance Optimization
+- Code splitting by route
+- Image optimization (next/image patterns)
+- React Query caching strategy
+- Memoization (useMemo, useCallback)
+- Virtual scrolling for large lists
 
-### Security (Ongoing)
-- [ ] Regular security audits
-  - Quarterly penetration testing
-  - Dependency vulnerability scanning
-  - Code security reviews
-- [ ] Security training
-  - Developer security training
-  - OWASP Top 10 awareness
-  - Secure coding practices
-- [ ] Incident response
-  - Security incident playbook
-  - Breach notification procedures
-  - Regular drills
+### Security Best Practices
+- Supabase RLS for all tables
+- Input validation with Zod
+- XSS prevention (sanitize user input)
+- CSRF protection
+- Secure file uploads
 
-### Data & Analytics (Ongoing)
-- [ ] Product analytics
-  - Feature usage tracking
-  - User behavior analysis
-  - Funnel optimization
-  - A/B testing framework
-- [ ] Business intelligence
-  - Executive dashboards
-  - Financial reporting
-  - Customer health scoring
-  - Retention analysis
+### Developer Experience
+- TypeScript strict mode
+- ESLint + Prettier
+- Husky pre-commit hooks
+- Conventional commits
+- Component documentation (Storybook optional)
 
-### Documentation (Ongoing)
-- [ ] Technical documentation
-  - API documentation
-  - Architecture decision records
-  - System diagrams
-  - Runbooks
-- [ ] User documentation
-  - User guides
-  - Video tutorials
-  - FAQs
-  - Release notes
-- [ ] Developer documentation
-  - Contributing guidelines
-  - Code standards
-  - Setup instructions
-  - Testing guidelines
+### Deployment Strategy
+- Vercel/Netlify auto-deploy from main
+- Preview deployments for PRs
+- Environment variables per environment
+- Database migrations via Supabase CLI
+- Edge function deployment
 
 ---
 
-## Key Technical Decisions for Scale
-
-### Multi-Tenancy Strategy
-**Decision:** Row-level security with organization_id partitioning
-
-**Rationale:**
-- Simpler than separate databases per tenant
-- Cost-effective at scale
-- Easier backup/restore
-- Shared schema updates
-- PostgreSQL RLS provides strong isolation
-
-**Implementation:**
-```sql
--- All tables include organization_id
-CREATE TABLE facilities (
-  id UUID PRIMARY KEY,
-  organization_id UUID NOT NULL REFERENCES organizations(id),
-  -- ... other fields
-);
-
--- Row-level security policy
-CREATE POLICY tenant_isolation ON facilities
-  USING (organization_id = current_setting('app.current_organization_id')::uuid);
-```
-
-### Caching Strategy
-**Decision:** Multi-layer caching (Cachex + CDN + Browser)
-
-**Layers:**
-1. **Application cache (Cachex):** Session data, user permissions, form schemas
-2. **Database cache:** Materialized views for analytics
-3. **CDN cache:** Static assets, uploaded files
-4. **Browser cache:** Service worker for offline
-
-### File Storage Strategy
-**Decision:** Supabase Storage with organization-based buckets
-
-**Structure:**
-```
-org_{uuid}/
-├── photos/
-│   ├── incidents/
-│   ├── reports/
-│   └── equipment/
-├── videos/
-├── documents/
-└── exports/
-```
-
-### Real-Time Strategy
-**Decision:** Phoenix Channels + LiveView for real-time updates
-
-**Use cases:**
-- Dashboard updates
-- Task notifications
-- Incident alerts
-- Presence tracking (who's online)
-
-### Offline Strategy
-**Decision:** Service Worker + IndexedDB + background sync
-
-**Sync logic:**
-1. All writes go to IndexedDB first
-2. Background sync queue processes when online
-3. Conflict resolution: last-write-wins with timestamp
-4. Visual indicators for sync status
-
----
-
-## Risk Mitigation
-
-### Technical Risks
-| Risk | Probability | Impact | Mitigation |
-|------|------------|--------|------------|
-| Database performance degradation at scale | Medium | High | Implement caching, optimize queries, add read replicas |
-| LiveView memory leaks | Medium | Medium | Regular memory profiling, proper cleanup in LiveView lifecycle |
-| Offline sync conflicts | High | Medium | Clear conflict resolution UI, timestamp-based resolution |
-| File upload failures | Medium | Low | Retry logic, chunked uploads, progress indicators |
-
-### Business Risks
-| Risk | Probability | Impact | Mitigation |
-|------|------------|--------|------------|
-| Slow customer adoption | Medium | High | Extended trials, white-glove onboarding, ROI calculators |
-| High churn rate | Low | High | Customer success team, usage monitoring, proactive outreach |
-| Feature bloat | High | Medium | Strict prioritization, user feedback loop, MVP mindset |
-| Competition | Medium | Medium | Fast iteration, strong customer relationships, unique value prop |
-
----
-
-## Success Criteria by Phase
+## Success Metrics Summary
 
 ### Phase 0 (Foundation)
-- ✅ All infrastructure deployed
-- ✅ Load test: 100 concurrent users
-- ✅ Security audit: No critical vulnerabilities
-- ✅ Test coverage: >80%
+- ✅ Lighthouse score >90
+- ✅ Bundle size <500KB
+- ✅ Test coverage >80%
+- ✅ Time to Interactive <3s
 
 ### Phase 1 (MVP)
-- ✅ 5 beta customers actively using
+- ✅ 5 beta customers
 - ✅ 100+ reports submitted
-- ✅ Mobile app installed on 50+ devices
-- ✅ Customer satisfaction: 8+/10
+- ✅ Mobile installs: 50+
+- ✅ Satisfaction: 8+/10
 
 ### Phase 2 (Expansion)
 - ✅ 25 paying customers
 - ✅ MRR: $25K+
-- ✅ Daily active usage: 75%+
-- ✅ Support tickets: <5/customer/month
+- ✅ DAU: 75%+
+- ✅ Support: <5 tickets/customer/month
 
 ### Phase 3 (Integration)
 - ✅ 75 paying customers
 - ✅ MRR: $75K+
-- ✅ 2 integrations live with 50% adoption
 - ✅ API: 100K requests/month
+- ✅ Integration adoption: 50%+
 
 ### Phase 4 (Enterprise)
 - ✅ 150 paying customers
@@ -1144,37 +1853,12 @@ org_{uuid}/
 
 ---
 
-## Development Team Structure
-
-### Phase 0-1 (Weeks 1-16)
-- 1 Full-stack Engineer (Phoenix/Elixir expert)
-- 1 Product Designer (UX/UI)
-- 1 DevOps/Infrastructure (part-time)
-
-### Phase 2-3 (Weeks 17-40)
-- 2 Full-stack Engineers
-- 1 Frontend Specialist (LiveView/Alpine.js)
-- 1 Product Designer
-- 1 DevOps Engineer
-- 1 QA Engineer (part-time)
-
-### Phase 4 (Weeks 41-52)
-- 3 Full-stack Engineers
-- 1 Frontend Specialist
-- 1 Backend Specialist (Integrations)
-- 1 Product Designer
-- 1 DevOps Engineer
-- 1 QA Engineer
-- 1 Customer Success Manager
-
----
-
 ## Next Steps
 
-1. **Review this roadmap** with stakeholders
-2. **Prioritize any adjustments** based on market feedback
-3. **Begin Phase 0** infrastructure setup
-4. **Recruit beta customers** for Phase 1
-5. **Set up project management** (GitHub Projects, Linear, or similar)
+1. **Review this Lovable-optimized roadmap**
+2. **Set up Supabase project** (database, auth, storage)
+3. **Initialize Lovable project** with shadcn/ui
+4. **Begin Phase 0** foundation work
+5. **Recruit beta customers** for Phase 1
 
-**Ready to start? Let's begin with Phase 0!**
+**Ready to build in Lovable? Let's start! 🚀**
