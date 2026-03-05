@@ -5,17 +5,38 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
+import { useAuth } from '@/contexts/AuthContext'
+import { toast } from 'sonner'
 
 export function LoginPage() {
   const navigate = useNavigate()
+  const { signIn } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // TODO: Implement Supabase authentication
-    // For demo, just navigate to dashboard
-    navigate('/dashboard')
+    setIsLoading(true)
+
+    try {
+      const { error } = await signIn(email, password)
+
+      if (error) {
+        toast.error('Login failed', {
+          description: error.message,
+        })
+        return
+      }
+
+      toast.success('Welcome back!')
+      navigate('/dashboard')
+    } catch (error) {
+      toast.error('An unexpected error occurred')
+      console.error('Login error:', error)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -68,8 +89,8 @@ export function LoginPage() {
           </div>
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">
-          <Button type="submit" className="w-full">
-            Sign In
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading ? 'Signing in...' : 'Sign In'}
           </Button>
           <p className="text-sm text-center text-muted-foreground">
             Don't have an account?{' '}

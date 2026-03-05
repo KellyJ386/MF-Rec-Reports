@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
@@ -8,25 +8,10 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   Plus, AlertTriangle, Search, Eye, Clock,
-  CheckCircle2, AlertCircle, Shield, FileText,
+  CheckCircle2, AlertCircle, Shield, FileText, Loader2,
 } from 'lucide-react'
-import { format, subDays, subHours } from 'date-fns'
-
-interface Incident {
-  id: string
-  title: string
-  description: string
-  location: string
-  severity: 'minor' | 'moderate' | 'severe' | 'critical'
-  status: 'open' | 'investigating' | 'resolved' | 'closed'
-  type: string
-  reportedBy: string
-  timestamp: string
-  emsCalled: boolean
-  hasPhotos: boolean
-  followUpRequired: boolean
-  injuredPerson?: string
-}
+import { format } from 'date-fns'
+import { useIncidents, useIncidentsSubscription } from '@/hooks/useIncidents'
 
 const severityConfig = {
   minor: { label: 'Minor', color: 'text-blue-600', bg: 'bg-blue-500/10', variant: 'secondary' as const },
@@ -43,26 +28,35 @@ const statusConfig = {
 }
 
 export function IncidentsPage() {
+  const { data: incidents = [], isLoading, error } = useIncidents()
+  useIncidentsSubscription() // Enable real-time updates
+
   const [search, setSearch] = useState('')
   const [severityFilter, setSeverityFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
 
-  const filtered = mockIncidents.filter(i => {
-    const matchSearch = !search ||
-      i.title.toLowerCase().includes(search.toLowerCase()) ||
-      i.description.toLowerCase().includes(search.toLowerCase()) ||
-      i.id.toLowerCase().includes(search.toLowerCase())
-    const matchSeverity = severityFilter === 'all' || i.severity === severityFilter
-    const matchStatus = statusFilter === 'all' || i.status === statusFilter
-    return matchSearch && matchSeverity && matchStatus
-  })
+  const filtered = useMemo(() => {
+    return incidents.filter(i => {
+      const matchSearch = !search ||
+        i.title.toLowerCase().includes(search.toLowerCase()) ||
+        i.description.toLowerCase().includes(search.toLowerCase()) ||
+        i.incident_number.toLowerCase().includes(search.toLowerCase())
+      const matchSeverity = severityFilter === 'all' || i.severity === severityFilter
+      const matchStatus = statusFilter === 'all' || i.status === statusFilter
+      return matchSearch && matchSeverity && matchStatus
+    })
+  }, [incidents, search, severityFilter, statusFilter])
 
-  const stats = {
-    total: mockIncidents.length,
-    open: mockIncidents.filter(i => i.status === 'open' || i.status === 'investigating').length,
-    critical: mockIncidents.filter(i => i.severity === 'critical').length,
-    thisWeek: mockIncidents.length,
-  }
+  const stats = useMemo(() => ({
+    total: incidents.length,
+    open: incidents.filter(i => i.status === 'open' || i.status === 'investigating').length,
+    critical: incidents.filter(i => i.severity === 'critical').length,
+    thisWeek: incidents.filter(i => {
+      const weekAgo = new Date()
+      weekAgo.setDate(weekAgo.getDate() - 7)
+      return new Date(i.occurred_at) >= weekAgo
+    }).length,
+  }), [incidents])
 
   return (
     <div className="space-y-6">
@@ -178,7 +172,22 @@ export function IncidentsPage() {
 
       {/* Incidents List */}
       <div className="space-y-3">
-        {filtered.length === 0 ? (
+        {isLoading ? (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <Loader2 className="h-8 w-8 mx-auto mb-3 animate-spin text-muted-foreground" />
+              <p className="text-muted-foreground">Loading incidents...</p>
+            </CardContent>
+          </Card>
+        ) : error ? (
+          <Card>
+            <CardContent className="py-12 text-center text-destructive">
+              <AlertCircle className="h-10 w-10 mx-auto mb-3" />
+              <p>Error loading incidents</p>
+              <p className="text-sm mt-2">{error.message}</p>
+            </CardContent>
+          </Card>
+        ) : filtered.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center text-muted-foreground">
               <Shield className="h-10 w-10 mx-auto mb-3 opacity-50" />
@@ -190,6 +199,9 @@ export function IncidentsPage() {
             const sev = severityConfig[incident.severity]
             const stat = statusConfig[incident.status]
             const StatIcon = stat.icon
+            const reporterName = incident.reported_by_profile
+              ? `${incident.reported_by_profile.first_name} ${incident.reported_by_profile.last_name}`
+              : 'Unknown'
 
             return (
               <Card key={incident.id} className="hover:shadow-md transition-shadow">
@@ -204,10 +216,10 @@ export function IncidentsPage() {
                           <StatIcon className="h-3 w-3 mr-1" />
                           {stat.label}
                         </Badge>
-                        {incident.emsCalled && (
+                        {incident.ems_called && (
                           <Badge variant="destructive" className="text-[10px]">EMS</Badge>
                         )}
-                        {incident.followUpRequired && (
+                        {incident.follow_up_required && (
                           <Badge variant="warning" className="text-[10px]">Follow-up</Badge>
                         )}
                       </div>
@@ -218,7 +230,7 @@ export function IncidentsPage() {
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
                         <div>
                           <p className="text-muted-foreground text-xs">Incident #</p>
-                          <p className="font-medium font-mono text-xs">{incident.id}</p>
+                          <p className="font-medium font-mono text-xs">{incident.incident_number}</p>
                         </div>
                         <div>
                           <p className="text-muted-foreground text-xs">Location</p>
@@ -226,17 +238,17 @@ export function IncidentsPage() {
                         </div>
                         <div>
                           <p className="text-muted-foreground text-xs">Reported By</p>
-                          <p className="font-medium">{incident.reportedBy}</p>
+                          <p className="font-medium">{reporterName}</p>
                         </div>
                         <div>
                           <p className="text-muted-foreground text-xs">Date/Time</p>
-                          <p className="font-medium">{incident.timestamp}</p>
+                          <p className="font-medium">{format(new Date(incident.occurred_at), 'MMM d, h:mm a')}</p>
                         </div>
                       </div>
 
-                      {incident.injuredPerson && (
+                      {incident.injured_person_name && (
                         <p className="text-xs text-muted-foreground mt-2">
-                          Injured: <span className="font-medium text-foreground">{incident.injuredPerson}</span>
+                          Injured: <span className="font-medium text-foreground">{incident.injured_person_name}</span>
                         </p>
                       )}
                     </div>
@@ -254,78 +266,3 @@ export function IncidentsPage() {
     </div>
   )
 }
-
-const mockIncidents: Incident[] = [
-  {
-    id: 'INC-2026-0001',
-    title: 'Pool Chemistry Out of Range',
-    description: 'pH level measured at 8.2, above acceptable range. Pool closed for chemical adjustment. Re-tested after 2 hours and levels returned to normal. Pool reopened at 11:30 AM.',
-    location: 'Main Pool',
-    severity: 'critical',
-    status: 'resolved',
-    type: 'chemical',
-    reportedBy: 'Mike Williams',
-    timestamp: format(subHours(new Date(), 3), 'MMM d, yyyy h:mm a'),
-    emsCalled: false,
-    hasPhotos: true,
-    followUpRequired: true,
-  },
-  {
-    id: 'INC-2026-0002',
-    title: 'Slip and Fall - Wet Floor',
-    description: 'Patron slipped on wet floor near locker room entrance. Minor bruising to left knee. First aid administered, ice pack applied. Patron declined further medical attention.',
-    location: 'Locker Room B',
-    severity: 'minor',
-    status: 'closed',
-    type: 'injury',
-    reportedBy: 'Sarah Johnson',
-    timestamp: format(subHours(new Date(), 5), 'MMM d, yyyy h:mm a'),
-    emsCalled: false,
-    hasPhotos: true,
-    followUpRequired: false,
-    injuredPerson: 'Jane Doe',
-  },
-  {
-    id: 'INC-2026-0003',
-    title: 'Equipment Malfunction - Treadmill #12',
-    description: 'Treadmill belt stopped suddenly during use. Member stepped off safely, no injury. Equipment taken out of service and maintenance notified.',
-    location: 'Fitness Floor',
-    severity: 'moderate',
-    status: 'investigating',
-    type: 'equipment',
-    reportedBy: 'John Smith',
-    timestamp: format(subHours(new Date(), 1), 'MMM d, yyyy h:mm a'),
-    emsCalled: false,
-    hasPhotos: false,
-    followUpRequired: true,
-  },
-  {
-    id: 'INC-2026-0004',
-    title: 'Child Rescue - Deep End',
-    description: 'Lifeguard performed active rescue on unaccompanied minor in deep end. Child was struggling and taking in water. Rescue performed successfully, child assessed by staff.',
-    location: 'Main Pool',
-    severity: 'severe',
-    status: 'open',
-    type: 'rescue',
-    reportedBy: 'David Park',
-    timestamp: format(new Date(), 'MMM d, yyyy h:mm a'),
-    emsCalled: true,
-    hasPhotos: false,
-    followUpRequired: true,
-    injuredPerson: 'Minor (8 years old)',
-  },
-  {
-    id: 'INC-2026-0005',
-    title: 'Behavioral Issue - Disruptive Patron',
-    description: 'Adult patron became verbally aggressive with front desk staff over guest policy. Security was called. Patron was asked to leave and complied.',
-    location: 'Lobby/Front Desk',
-    severity: 'minor',
-    status: 'closed',
-    type: 'behavioral',
-    reportedBy: 'Lisa Chen',
-    timestamp: format(subDays(new Date(), 1), 'MMM d, yyyy h:mm a'),
-    emsCalled: false,
-    hasPhotos: false,
-    followUpRequired: false,
-  },
-]

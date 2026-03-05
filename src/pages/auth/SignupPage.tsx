@@ -4,9 +4,12 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { useAuth } from '@/contexts/AuthContext'
+import { toast } from 'sonner'
 
 export function SignupPage() {
   const navigate = useNavigate()
+  const { signUp } = useAuth()
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -14,12 +17,42 @@ export function SignupPage() {
     password: '',
     organization: '',
   })
+  const [isLoading, setIsLoading] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // TODO: Implement Supabase authentication
-    // For demo, just navigate to dashboard
-    navigate('/dashboard')
+
+    if (formData.password.length < 8) {
+      toast.error('Password must be at least 8 characters')
+      return
+    }
+
+    setIsLoading(true)
+
+    try {
+      const { error } = await signUp(formData.email, formData.password, {
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        organization_name: formData.organization,
+      })
+
+      if (error) {
+        toast.error('Signup failed', {
+          description: error.message,
+        })
+        return
+      }
+
+      toast.success('Account created successfully!', {
+        description: 'Please check your email to verify your account.',
+      })
+      navigate('/login')
+    } catch (error) {
+      toast.error('An unexpected error occurred')
+      console.error('Signup error:', error)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -100,8 +133,8 @@ export function SignupPage() {
           </div>
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">
-          <Button type="submit" className="w-full">
-            Create Account
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading ? 'Creating Account...' : 'Create Account'}
           </Button>
           <p className="text-sm text-center text-muted-foreground">
             Already have an account?{' '}
